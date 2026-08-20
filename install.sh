@@ -4,10 +4,10 @@
 # Tai toan bo file cua Disk Health Monitor tu GitHub va cai dat tren Proxmox VE.
 #
 # Cach dung (chay tren node Proxmox, can quyen root):
-#   sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/<user>/<repo>/main/install.sh)"
+#   sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/jackedtea/proxmox-disk-health/main/install.sh)"
 #
 # Hoac tai ve roi chay:
-#   curl -fsSL https://raw.githubusercontent.com/<user>/<repo>/main/install.sh -o install.sh
+#   curl -fsSL https://raw.githubusercontent.com/jackedtea/proxmox-disk-health/main/install.sh -o install.sh
 #   sudo bash install.sh
 
 set -euo pipefail
