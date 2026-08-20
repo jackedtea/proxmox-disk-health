@@ -1,0 +1,11 @@
+[Unit]
+Description=Chay kiem tra suc khoe o dia dinh ky (2 lan/ngay)
+
+[Timer]
+# Chay luc 06:00 va 18:00 moi ngay
+OnCalendar=*-*-* 06,18:00:00
+RandomizedDelaySec=300
+Persistent=true
+
+[Install]
+WantedBy=timers.target

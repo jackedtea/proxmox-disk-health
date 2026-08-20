@@ -1,0 +1,7 @@
+[Unit]
+Description=Gui bao cao suc khoe o dia hang tuan (Proxmox)
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/disk-health-monitor.sh report

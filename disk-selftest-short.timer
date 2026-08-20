@@ -1,0 +1,10 @@
+[Unit]
+Description=Chay SMART short self-test hang tuan (Chu Nhat 02:00)
+
+[Timer]
+OnCalendar=Sun *-*-* 02:00:00
+RandomizedDelaySec=300
+Persistent=true
+
+[Install]
+WantedBy=timers.target

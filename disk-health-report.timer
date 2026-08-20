@@ -1,0 +1,10 @@
+[Unit]
+Description=Gui bao cao suc khoe o dia hang tuan (Thu 2, 08:00)
+
+[Timer]
+OnCalendar=Mon *-*-* 08:00:00
+RandomizedDelaySec=600
+Persistent=true
+
+[Install]
+WantedBy=timers.target

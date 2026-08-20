@@ -1,0 +1,7 @@
+[Unit]
+Description=Kich hoat SMART short self-test tren o dia SATA/NVMe (Proxmox)
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/disk-health-monitor.sh test-short
