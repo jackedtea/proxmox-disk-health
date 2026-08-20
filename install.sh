@@ -11,15 +11,9 @@
 #   sudo bash install.sh
 
 set -euo pipefail
-
-# ================= CAU HINH: SUA LAI CHO DUNG REPO CUA BAN =================
-GITHUB_REPO="jackedtea/proxmox-disk-health"   # vd: "anhvan/disk-health-monitor"
-GITHUB_REF="main"                          # nhanh (branch) hoac tag/commit cu the
-SUBDIR=""                                       # thu muc con trong repo chua cac file, de trong neu o root repo
 # =============================================================================
 
-BASE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_REF}"
-[[ -n "$SUBDIR" ]] && BASE_URL="${BASE_URL}/${SUBDIR}"
+BASE_URL="https://raw.githubusercontent.com/jackedtea/proxmox-disk-health/main"
 
 FILES=(
     "disk-health-monitor.sh"
@@ -51,13 +45,6 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
-if [[ "$GITHUB_REPO" == "your-username/your-repo" ]]; then
-    echo "Loi: chua cau hinh GITHUB_REPO." >&2
-    echo "Sua bien GITHUB_REPO o dau file install.sh, hoac chay voi:" >&2
-    echo "  GITHUB_REPO=\"user/repo\" sudo -E bash install.sh" >&2
-    exit 1
-fi
-
 command -v curl >/dev/null 2>&1 || { echo "Loi: can co curl. Cai dat: apt install curl" >&2; exit 1; }
 
 echo ">> Nguon tai file: ${BASE_URL}"
@@ -78,7 +65,6 @@ for f in "${FILES[@]}"; do
     echo "   - ${f}"
     if ! curl -fsSL "${BASE_URL}/${f}" -o "${TMP_DIR}/${f}"; then
         echo "Loi: khong tai duoc ${BASE_URL}/${f}" >&2
-        echo "Kiem tra lai GITHUB_REPO / GITHUB_REF / SUBDIR va quyen truy cap repo (phai la public)." >&2
         exit 1
     fi
 done
