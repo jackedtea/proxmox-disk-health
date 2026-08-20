@@ -20,16 +20,16 @@ hoac private co the truy cap raw file), tren tung node Proxmox chi can chay
 **1 lenh**:
 
 ```bash
-sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/<user>/<repo>/main/install.sh)" \
-    GITHUB_REPO="<user>/<repo>"
+sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/jackedtea/proxmox-disk-health/main/install.sh)" \
+    GITHUB_REPO="jackedtea/proxmox-disk-health"
 ```
 
 Hoac chi dinh truoc bang bien moi truong (khuyen nghi neu file khong nam o
 root cua repo, hoac muon ghim theo tag/commit thay vi branch `main`):
 
 ```bash
-GITHUB_REPO="<user>/<repo>" GITHUB_REF="main" SUBDIR="" \
-    sudo -E bash -c "$(curl -fsSL https://raw.githubusercontent.com/<user>/<repo>/main/install.sh)"
+GITHUB_REPO="jackedtea/proxmox-disk-health" GITHUB_REF="main" SUBDIR="" \
+    sudo -E bash -c "$(curl -fsSL https://raw.githubusercontent.com/jackedtea/proxmox-disk-health/main/install.sh)"
 ```
 
 | Bien | Y nghia | Vi du |
