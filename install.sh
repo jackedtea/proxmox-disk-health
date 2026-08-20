@@ -13,9 +13,9 @@
 set -euo pipefail
 
 # ================= CAU HINH: SUA LAI CHO DUNG REPO CUA BAN =================
-GITHUB_REPO="${GITHUB_REPO:-your-username/your-repo}"   # vd: "anhvan/disk-health-monitor"
-GITHUB_REF="${GITHUB_REF:-main}"                          # nhanh (branch) hoac tag/commit cu the
-SUBDIR="${SUBDIR:-}"                                       # thu muc con trong repo chua cac file, de trong neu o root repo
+GITHUB_REPO="jackedtea/proxmox-disk-health"   # vd: "anhvan/disk-health-monitor"
+GITHUB_REF="main"                          # nhanh (branch) hoac tag/commit cu the
+SUBDIR=""                                       # thu muc con trong repo chua cac file, de trong neu o root repo
 # =============================================================================
 
 BASE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_REF}"
