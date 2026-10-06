@@ -1,5 +1,5 @@
 [Unit]
-Description=Chay SMART long (extended) self-test hang thang (ngay 1, 03:00)
+Description=Run SMART long (extended) self-test monthly (1st, 03:00)
 
 [Timer]
 OnCalendar=*-*-01 03:00:00

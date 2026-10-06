@@ -1,5 +1,5 @@
 [Unit]
-Description=Chay SMART short self-test hang tuan (Chu Nhat 02:00)
+Description=Run SMART short self-test weekly (Sunday 02:00)
 
 [Timer]
 OnCalendar=Sun *-*-* 02:00:00

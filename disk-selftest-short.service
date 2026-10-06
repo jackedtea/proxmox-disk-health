@@ -1,7 +1,9 @@
 [Unit]
-Description=Kich hoat SMART short self-test tren o dia SATA/NVMe (Proxmox)
+Description=SMART short self-test on SATA/NVMe disks (Proxmox)
 After=local-fs.target
 
 [Service]
 Type=oneshot
+# Waits for the test to finish, then mails the report
+TimeoutStartSec=infinity
 ExecStart=/usr/local/bin/disk-health-monitor.sh test-short

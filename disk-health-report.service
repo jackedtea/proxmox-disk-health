@@ -1,5 +1,5 @@
 [Unit]
-Description=Gui bao cao suc khoe o dia hang tuan (Proxmox)
+Description=Weekly disk health report (Proxmox)
 After=local-fs.target
 
 [Service]

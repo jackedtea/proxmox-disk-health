@@ -1,5 +1,5 @@
 [Unit]
-Description=Kiem tra suc khoe o dia SATA/NVMe (Proxmox)
+Description=Disk health check for SATA/NVMe disks (Proxmox)
 After=local-fs.target
 
 [Service]

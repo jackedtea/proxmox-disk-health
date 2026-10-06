@@ -1,8 +1,8 @@
 [Unit]
-Description=Chay kiem tra suc khoe o dia dinh ky (2 lan/ngay)
+Description=Run disk health check twice a day
 
 [Timer]
-# Chay luc 06:00 va 18:00 moi ngay
+# 06:00 and 18:00 every day
 OnCalendar=*-*-* 06,18:00:00
 RandomizedDelaySec=300
 Persistent=true

@@ -1,102 +1,79 @@
 #!/usr/bin/env bash
 #
 # install.sh
-# Tai toan bo file cua Disk Health Monitor tu GitHub va cai dat tren Proxmox VE.
+# Downloads Disk Health Monitor from GitHub and installs it on Proxmox VE.
 #
-# Cach dung (chay tren node Proxmox, can quyen root):
-#   sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/jackedtea/proxmox-disk-health/main/install.sh)"
+# Usage (on the Proxmox node, as root):
+#   bash -c "$(curl -fsSL https://raw.githubusercontent.com/jackedtea/proxmox-disk-health/main/install.sh)"
 #
-# Hoac tai ve roi chay:
-#   curl -fsSL https://raw.githubusercontent.com/jackedtea/proxmox-disk-health/main/install.sh -o install.sh
-#   sudo bash install.sh
+# Optional environment variables:
+#   GITHUB_REPO  user/repo on GitHub          (default: jackedtea/proxmox-disk-health)
+#   GITHUB_REF   branch, tag or commit hash   (default: main)
+#   SUBDIR       subdirectory holding files   (default: repo root)
 
 set -euo pipefail
-# =============================================================================
 
-BASE_URL="https://raw.githubusercontent.com/jackedtea/proxmox-disk-health/main"
+GITHUB_REPO="${GITHUB_REPO:-jackedtea/proxmox-disk-health}"
+GITHUB_REF="${GITHUB_REF:-main}"
+SUBDIR="${SUBDIR:-}"
+BASE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_REF}${SUBDIR:+/${SUBDIR%/}}"
 
-FILES=(
-    "disk-health-monitor.sh"
-    "disk-health-check.service"
-    "disk-health-check.timer"
-    "disk-health-report.service"
-    "disk-health-report.timer"
-    "disk-selftest-short.service"
-    "disk-selftest-short.timer"
-    "disk-selftest-long.service"
-    "disk-selftest-long.timer"
-)
-
-UNIT_FILES=(
-    "disk-health-check.service"
-    "disk-health-check.timer"
-    "disk-health-report.service"
-    "disk-health-report.timer"
-    "disk-selftest-short.service"
-    "disk-selftest-short.timer"
-    "disk-selftest-long.service"
-    "disk-selftest-long.timer"
-)
-
-# ------------------------------------------------------------------
+TIMERS=(disk-health-check disk-health-report disk-selftest-short disk-selftest-long)
+UNIT_FILES=()
+for t in "${TIMERS[@]}"; do UNIT_FILES+=("$t.service" "$t.timer"); done
 
 if [[ $EUID -ne 0 ]]; then
-    echo "Loi: script nay can chay voi quyen root (thu: sudo bash install.sh)" >&2
+    echo "Error: this script must run as root (try: sudo bash install.sh)" >&2
     exit 1
 fi
+command -v curl >/dev/null 2>&1 || { echo "Error: curl is required. Install it with: apt install curl" >&2; exit 1; }
 
-command -v curl >/dev/null 2>&1 || { echo "Loi: can co curl. Cai dat: apt install curl" >&2; exit 1; }
-
-echo ">> Nguon tai file: ${BASE_URL}"
+echo ">> Source: ${BASE_URL}"
 
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
-echo ">> [1/5] Kiem tra / cai dat smartmontools..."
-if ! command -v smartctl >/dev/null 2>&1; then
+echo ">> [1/5] Checking smartmontools..."
+if command -v smartctl >/dev/null 2>&1; then
+    echo "   Already installed."
+else
     apt-get update -qq
     apt-get install -y smartmontools
-else
-    echo "   Da co san."
 fi
 
-echo ">> [2/5] Tai file tu GitHub..."
-for f in "${FILES[@]}"; do
+echo ">> [2/5] Downloading files..."
+for f in disk-health-monitor.sh "${UNIT_FILES[@]}"; do
     echo "   - ${f}"
-    if ! curl -fsSL "${BASE_URL}/${f}" -o "${TMP_DIR}/${f}"; then
-        echo "Loi: khong tai duoc ${BASE_URL}/${f}" >&2
-        exit 1
-    fi
+    curl -fsSL "${BASE_URL}/${f}" -o "${TMP_DIR}/${f}" || { echo "Error: failed to download ${BASE_URL}/${f}" >&2; exit 1; }
 done
 
-echo ">> [3/5] Cai dat script chinh vao /usr/local/bin ..."
+echo ">> [3/5] Installing script to /usr/local/bin ..."
 install -o root -g root -m 755 "${TMP_DIR}/disk-health-monitor.sh" /usr/local/bin/disk-health-monitor.sh
 
-echo ">> [4/5] Cai dat systemd units vao /etc/systemd/system ..."
+echo ">> [4/5] Installing systemd units to /etc/systemd/system ..."
 for unit in "${UNIT_FILES[@]}"; do
     install -o root -g root -m 644 "${TMP_DIR}/${unit}" "/etc/systemd/system/${unit}"
 done
-
 systemctl daemon-reload
 
-echo ">> [5/5] Bat cac timer..."
-systemctl enable --now disk-health-check.timer
-systemctl enable --now disk-health-report.timer
-systemctl enable --now disk-selftest-short.timer
-systemctl enable --now disk-selftest-long.timer
+echo ">> [5/5] Enabling timers..."
+# restart (not just enable --now) so schedule changes apply on re-install
+systemctl enable "${TIMERS[@]/%/.timer}"
+systemctl restart "${TIMERS[@]/%/.timer}"
 
-echo
-echo "=================================================================="
-echo " Cai dat hoan tat!"
-echo "=================================================================="
-echo
-echo "Cac timer dang hoat dong:"
-systemctl list-timers 'disk-*' --no-pager 2>/dev/null || true
-echo
-echo "Kiem tra thu ngay:"
-echo "  /usr/local/bin/disk-health-monitor.sh check"
-echo
-echo "QUAN TRONG: dam bao trong Datacenter -> Notifications da co it nhat"
-echo "mot target/matcher khop type=system-mail (va root@pam co email hop le)."
-echo "Xem huong dan trong README.md cua repo neu chua cau hinh."
-echo
+cat <<EOF
+
+==================================================================
+ Installation complete!
+==================================================================
+
+Active timers:
+$(systemctl list-timers 'disk-*' --no-pager 2>/dev/null || true)
+
+Try it now:
+  /usr/local/bin/disk-health-monitor.sh check
+
+IMPORTANT: make sure Datacenter -> Notifications has at least one
+target/matcher matching type=system-mail (and root@pam has a valid email).
+See README.md in the repo if this is not configured yet.
+EOF

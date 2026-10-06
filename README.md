@@ -1,105 +1,89 @@
-# Disk Health Monitor cho Proxmox VE
+# Disk Health Monitor for Proxmox VE
 
-Giam sat SMART cua o dia SATA/NVMe, gui canh bao ngay khi phat hien loi va
-gui bao cao day du moi tuan — thong qua he thong Notification cua Proxmox VE.
+Monitors SMART data of SATA/NVMe disks, alerts as soon as a problem is found,
+sends a full report after every SMART self-test and once a week — all through
+the Proxmox VE notification system.
 
-## Vi sao dung sendmail thay vi goi API notification truc tiep?
+## Why sendmail instead of the notification API?
 
-Tinh den hien tai, Proxmox VE **chua co API cong khai de gui mot notification
-tuy y**. Cach duoc chinh doi Proxmox xac nhan la: gui mail cuc bo toi user
-`root` bang lenh `sendmail`. Mail nay se duoc he thong tu dong bat (system
-mail forwarding) va dua vao notification stack voi loai (type) la
-`system-mail`, roi duoc dinh tuyen (route) toi cac target ban da cau hinh
-trong Datacenter -> Notifications (email, Gotify, webhook, ...) theo cac
-matcher hien co.
+Proxmox VE currently **has no public API for sending an arbitrary
+notification**. The approach confirmed by the Proxmox team is to send local
+mail to `root` with `sendmail`. That mail is picked up by system mail
+forwarding and fed into the notification stack with type `system-mail`, then
+routed to whatever targets you configured under Datacenter -> Notifications
+(email, Gotify, webhook, ...) according to your matchers.
 
-## Cai dat tu dong tu GitHub (khuyen nghi)
+## Install from GitHub (recommended)
 
-Sau khi push toan bo cac file trong thu muc nay len GitHub (repo cong khai
-hoac private co the truy cap raw file), tren tung node Proxmox chi can chay
-**1 lenh**:
+Run on each Proxmox node, as root:
 
 ```bash
-sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/jackedtea/proxmox-disk-health/main/install.sh)" \
-    GITHUB_REPO="jackedtea/proxmox-disk-health"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/jackedtea/proxmox-disk-health/main/install.sh)"
 ```
 
-Hoac chi dinh truoc bang bien moi truong (khuyen nghi neu file khong nam o
-root cua repo, hoac muon ghim theo tag/commit thay vi branch `main`):
+To install from a fork, a subdirectory, or a pinned tag/commit:
 
 ```bash
-GITHUB_REPO="jackedtea/proxmox-disk-health" GITHUB_REF="main" SUBDIR="" \
-    sudo -E bash -c "$(curl -fsSL https://raw.githubusercontent.com/jackedtea/proxmox-disk-health/main/install.sh)"
+GITHUB_REPO="jackedtea/proxmox-disk-health" GITHUB_REF="v1.0.0" SUBDIR="" bash -c "$(curl -fsSL https://raw.githubusercontent.com/jackedtea/proxmox-disk-health/main/install.sh)"
 ```
 
-| Bien | Y nghia | Vi du |
+| Variable | Meaning | Default |
 |---|---|---|
-| `GITHUB_REPO` | `user/repo` tren GitHub | `anhvan/disk-health-monitor` |
-| `GITHUB_REF` | branch, tag hoac commit hash | `main`, `v1.0.0` |
-| `SUBDIR` | thu muc con chua cac file neu khong o root repo | `disk-health-monitor` |
+| `GITHUB_REPO` | `user/repo` on GitHub | `jackedtea/proxmox-disk-health` |
+| `GITHUB_REF` | branch, tag or commit hash | `main` |
+| `SUBDIR` | subdirectory holding the files, if not the repo root | *(empty)* |
 
-Script `install.sh` se tu dong:
-1. Cai `smartmontools` neu chua co
-2. Tai tat ca file can thiet tu GitHub (raw.githubusercontent.com)
-3. Copy script chinh vao `/usr/local/bin/`
-4. Copy 8 file service/timer vao `/etc/systemd/system/`
-5. `systemctl daemon-reload` va bat (`enable --now`) ca 4 timer
+`install.sh` will:
+1. Install `smartmontools` if missing
+2. Download all files from GitHub (raw.githubusercontent.com)
+3. Install the main script to `/usr/local/bin/`
+4. Install the 8 service/timer units to `/etc/systemd/system/`
+5. `systemctl daemon-reload`, then enable and (re)start all 4 timers
 
-> **Luu y bao mat:** lenh tren tai va chay script bang quyen root truc tiep
-> tu Internet (`curl | bash`). Chi thuc hien voi repo cua chinh ban / da tin
-> tuong, va nen ghim `GITHUB_REF` vao mot **tag/commit cu the** thay vi
-> `main` de tranh truong hop code thay doi ngoai y muon giua cac lan chay
-> tren nhieu node. Neu muon can trong hon, tai `install.sh` ve truoc, doc
-> qua noi dung, roi moi chay `sudo bash install.sh`.
+> **Security note:** this downloads and runs a script as root straight from
+> the Internet. Only do this with a repo you own or trust, and prefer pinning
+> `GITHUB_REF` to a **specific tag/commit** instead of `main` so every node
+> runs the same code. To be more careful, download `install.sh` first, read
+> it, then run `bash install.sh`.
 
-### Chay lai / cap nhat phien ban moi
+### Re-running / updating
 
-Chi can chay lai dung 1 lenh cai dat o tren — script se ghi de file cu bang
-ban moi tai ve va khoi dong lai daemon-reload (khong can go cai dat truoc).
+Just run the same install command again — files are overwritten with the new
+version and the timers are restarted. No need to uninstall first.
 
 ---
 
-## Cai dat thu cong (khong dung GitHub)
+## Manual install (without GitHub)
 
 ```bash
-# 1. Cai smartmontools neu chua co
+# 1. Install smartmontools if missing
 apt update && apt install -y smartmontools
 
-# 2. Copy script chinh
-cp disk-health-monitor.sh /usr/local/bin/disk-health-monitor.sh
-chmod +x /usr/local/bin/disk-health-monitor.sh
+# 2. Install the main script
+install -m 755 disk-health-monitor.sh /usr/local/bin/disk-health-monitor.sh
 
-# 3. Copy cac unit systemd
-cp disk-health-check.service   /etc/systemd/system/
-cp disk-health-check.timer     /etc/systemd/system/
-cp disk-health-report.service  /etc/systemd/system/
-cp disk-health-report.timer    /etc/systemd/system/
-cp disk-selftest-short.service /etc/systemd/system/
-cp disk-selftest-short.timer   /etc/systemd/system/
-cp disk-selftest-long.service  /etc/systemd/system/
-cp disk-selftest-long.timer    /etc/systemd/system/
+# 3. Install the systemd units
+install -m 644 disk-health-*.service disk-health-*.timer \
+    disk-selftest-*.service disk-selftest-*.timer /etc/systemd/system/
 
-# 4. Nap lai systemd va bat cac timer
+# 4. Reload systemd and enable the timers
 systemctl daemon-reload
-systemctl enable --now disk-health-check.timer
-systemctl enable --now disk-health-report.timer
-systemctl enable --now disk-selftest-short.timer
-systemctl enable --now disk-selftest-long.timer
+systemctl enable --now disk-health-check.timer disk-health-report.timer \
+    disk-selftest-short.timer disk-selftest-long.timer
 ```
 
-## Kiem tra dam bao mail toi root duoc route dung
+## Make sure mail to root is routed
 
 ```bash
-# Dam bao root@pam co email hop le (neu chua co)
+# Make sure root@pam has a valid email address
 pveum user modify root@pam -email your-email@example.com
 
-# Kiem tra da co it nhat 1 target/matcher trong Datacenter -> Notifications
-# (hoac qua CLI):
+# Check there is at least one target/matcher under Datacenter -> Notifications
 pvesh get /cluster/notifications/matchers
 pvesh get /cluster/notifications/endpoints/sendmail
 ```
 
-Neu chua co target nao, tao nhanh mot target sendmail mac dinh:
+If there are no targets yet, create a default sendmail target:
 
 ```bash
 pvesh create /cluster/notifications/endpoints/sendmail \
@@ -112,77 +96,90 @@ pvesh create /cluster/notifications/matchers \
   --match-field type=system-mail
 ```
 
-## Chay thu ngay lap tuc
+## Run manually
 
 ```bash
-/usr/local/bin/disk-health-monitor.sh check       # kiem tra + canh bao neu co loi
-/usr/local/bin/disk-health-monitor.sh report      # gui bao cao day du ngay lap tuc
-/usr/local/bin/disk-health-monitor.sh test-short  # kich hoat SMART short self-test ngay
-/usr/local/bin/disk-health-monitor.sh test-long   # kich hoat SMART long self-test ngay
+/usr/local/bin/disk-health-monitor.sh check       # check and alert on new problems
+/usr/local/bin/disk-health-monitor.sh report      # send a full report right now
+/usr/local/bin/disk-health-monitor.sh test-short  # run a short self-test, then mail the report
+/usr/local/bin/disk-health-monitor.sh test-long   # run a long self-test, then mail the report
 
-# Xem log
+# Or in the background through systemd (recommended for test-long)
+systemctl start --no-block disk-selftest-long.service
+
+# Logs
 journalctl -t disk-health-monitor -n 50
 
-# Xem bao cao gan nhat da luu
+# Last saved report
 cat /var/lib/disk-health-monitor/last_report.txt
 
-# Xem tien do / ket qua self-test truc tiep tren 1 o dia
+# Self-test progress / results on a single disk
 smartctl -l selftest -d sat  /dev/sda    # SATA
 smartctl -l selftest -d nvme /dev/nvme0  # NVMe
 ```
 
-## SMART self-test (short / long)
+## SMART self-tests (short / long)
 
-- `test-short`: kich hoat **short self-test** (thuong ~2 phut, kiem tra co ban dien tu +
-  co gioi han vung dia). Duoc lap lich chay **hang tuan vao Chu Nhat luc 02:00**.
-- `test-long`: kich hoat **long/extended self-test** (quet toan bo be mat dia, co the mat
-  vai gio tuy dung luong). Duoc lap lich chay **hang thang vao ngay 1 luc 03:00**.
-- Script chi **kich hoat** test roi thoat ngay (khong doi test chay xong), va gui 1 mail
-  xac nhan da kich hoat thanh cong hay khong tren tung o dia.
-- **Ket qua** cua lan self-test gan nhat se duoc lan chay `check` dinh ky tiep theo (06:00
-  hoac 18:00) tu dong doc tu SMART self-test log va canh bao ngay neu test bi that bai
-  (vi du: "Completed: read failure", "Completed: unknown failure" ...).
-- Neu o dia dung lon (vai TB tro len), long test co the chua xong truoc lan `check` gan
-  nhat — khong sao, lan `check` ke tiep se bat duoc ket qua khi test da hoan tat.
+- `test-short` starts a **short self-test** (usually ~2 minutes) on every disk.
+  Scheduled **weekly on Sunday at 02:00**.
+- `test-long` starts a **long/extended self-test** (scans the whole surface,
+  can take hours depending on capacity). Scheduled **monthly on the 1st at 03:00**.
+- After starting the tests, the script **waits until they finish** (polling
+  every 60 s) and then **immediately sends one mail** with each disk's
+  self-test result plus the full health report. The subject tells you the
+  outcome at a glance:
+  - `SMART short self-test passed - all disks healthy`
+  - `SMART short self-test done - disk problems detected`
+  - `ALERT: SMART short self-test FAILED`
+- If a test is still running after `SHORT_MAX_WAIT` / `LONG_MAX_WAIT`, or the
+  node reboots mid-test, the regular `check` run picks up the result from the
+  SMART self-test log later.
+- Self-test runs are serialized with a lock, so if the 1st of the month is a
+  Sunday the long test simply starts after the short one finishes.
+- Tests that were aborted or interrupted (e.g. by a reboot) are not reported
+  as disk failures.
 
-## Tuy chinh nguong canh bao
+## Tuning
 
-Sua cac bien o dau file `/usr/local/bin/disk-health-monitor.sh`:
+Edit the variables at the top of `/usr/local/bin/disk-health-monitor.sh`:
 
-| Bien | Y nghia | Mac dinh |
+| Variable | Meaning | Default |
 |---|---|---|
-| `TEMP_WARN` | Nhiet do canh bao (C) | 55 |
-| `TEMP_CRIT` | Nhiet do nguy hiem (C) | 65 |
-| `NVME_USED_WARN` | % Percentage Used canh bao cho NVMe | 85 |
+| `TEMP_WARN` | Temperature warning threshold (C) | 55 |
+| `TEMP_CRIT` | Temperature critical threshold (C) | 65 |
+| `NVME_USED_WARN` | NVMe Percentage Used warning threshold (%) | 85 |
+| `POLL_INTERVAL` | Seconds between self-test progress checks | 60 |
+| `SHORT_MAX_WAIT` | Max seconds to wait for a short self-test | 3600 |
+| `LONG_MAX_WAIT` | Max seconds to wait for a long self-test | 172800 |
 
-## Lich chay mac dinh
+## Default schedule
 
-- `disk-health-check.timer`: 06:00 va 18:00 moi ngay — chi gui mail
-  khi phat hien van de MOI (bao gom ca ket qua self-test that bai), va gui
-  lai mot lan khi da khoi phuc (khong spam lap lai loi cu).
-- `disk-health-report.timer`: 08:00 Thu Hai hang tuan — gui bao cao
-  day du tinh trang tat ca o dia du co loi hay khong.
-- `disk-selftest-short.timer`: 02:00 Chu Nhat hang tuan — kich hoat
-  SMART short self-test tren tat ca o dia.
-- `disk-selftest-long.timer`: 03:00 ngay 1 hang thang — kich hoat
-  SMART long (extended) self-test tren tat ca o dia.
+- `disk-health-check.timer`: 06:00 and 18:00 daily — mails only when a **new**
+  problem appears (including a failed self-test), and once more on recovery
+  (known problems are not re-sent).
+- `disk-health-report.timer`: Monday 08:00 — full report of all disks,
+  whether or not there are problems.
+- `disk-selftest-short.timer`: Sunday 02:00 — SMART short self-test on all
+  disks, report mailed when it finishes.
+- `disk-selftest-long.timer`: 1st of the month 03:00 — SMART long self-test
+  on all disks, report mailed when it finishes.
 
-  > Luu y: neu ngay 1 roi vao Chu Nhat, ca 2 test se cung kich hoat trong
-  > cung 1 ngay (short 02:00, long 03:00) — khong xung dot vi smartctl se
-  > tu huy short test dang cho (neu con) khi long test bat dau.
+## Monitored attributes
 
-## Kiem tra cac attribute duoc theo doi
+Disks and their device types are discovered with `smartctl --scan`.
 
-**SATA (qua smartctl -A -d sat):**
-- SMART overall-health (PASSED/FAILED)
+**SATA:**
+- SMART overall health (PASSED/FAILED)
 - `Reallocated_Sector_Ct` > 0
 - `Current_Pending_Sector` > 0
 - `Offline_Uncorrectable` > 0
-- `Temperature_Celsius` vuot nguong
+- `Temperature_Celsius` (or `Airflow_Temperature_Cel`) above threshold
+- Result of the most recent self-test
 
-**NVMe (qua smartctl -A -d nvme):**
-- SMART overall-health
-- `Critical Warning` khac `0x00`
+**NVMe:**
+- SMART overall health
+- `Critical Warning` other than `0x00`
 - `Media and Data Integrity Errors` > 0
-- `Percentage Used` >= nguong
-- `Temperature` vuot nguong
+- `Percentage Used` >= threshold
+- `Temperature` above threshold
+- Result of the most recent self-test
